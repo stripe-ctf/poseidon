@@ -1,29 +1,45 @@
 # Poseidon
 
-TODO: Write a gem description
-
-## Installation
-
-Add this line to your application's Gemfile:
-
-    gem 'poseidon'
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install poseidon
+A simple utility to allow boot-once, run as many times as you want,
+for Ruby applications.
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+require 'poseidon'
+poseidon = Poseidon.new do
+  puts "This code is run in the context of the client"
+  puts "Arguments: #{ARGV.inspect}"
+end
 
-## Contributing
+poseidon.run
+```
 
-1. Fork it
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create new Pull Request
+## How it works
+
+The Poseidon server loads the code for your project and then listens
+on a UNIX socket for connections. The client connects and sends the
+following:
+
+- Command-line arguments
+- Standard input, standard output, standard error
+
+The server then forks, reopens its input/output/error, and the
+subprocess executes. Once the subprocess exits, the master responds to
+the client with the exitstatus, at which point the client quits.
+
+## Prior art
+
+Zeus is a much more featureful implementation of the same concept:
+https://github.com/burke/zeus.
+
+However, Poseidon's simplicity makes it suitable for running in
+production. I recommend using it in environments where you need to
+boot many copies of a Ruby script. My main use-case is for
+non-interactive login shells (think git-shell).
+
+## Limitations
+
+Poseidon does not currently change the forked process's controlling
+terminal, meaning you shouldn't use it for things like interactive
+shells.
