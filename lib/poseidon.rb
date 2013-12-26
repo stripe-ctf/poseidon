@@ -5,10 +5,13 @@ require 'set'
 class Poseidon
   include Chalk::Log
 
-  def initialize(&blk)
-    @master_process = $$
+  attr_reader :socket_path
+
+  def initialize(socket_path=nil, &blk)
+    @socket_path = socket_path || ENV['POSEIDON_SOCK'] || '/tmp/poseidon.sock'
     @blk = blk
 
+    @master_process = $$
     @children = {}
     @loopbreak_reader, @loopbreak_writer = IO.pipe
 
@@ -63,10 +66,6 @@ class Poseidon
     end
 
     conn.close
-  end
-
-  def socket_path
-    socket_path = ENV['POSEIDON_SOCK'] || '/tmp/poseidon.sock'
   end
 
   def accept_loop(server)
