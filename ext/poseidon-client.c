@@ -10,7 +10,7 @@
 void checked_send(int s, void *buffer, int length)
 {
   if (send(s, buffer, length, 0) < 0) {
-    perror("send");
+    perror("Could not write bytes");
     exit(200);
   }
 }
@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 
   int s;
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-    perror("socket");
+    perror("Could not create socket");
     exit(200);
   }
 
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
   remote.sun_family = AF_UNIX;
   strncpy(remote.sun_path, sock_path, sizeof(remote.sun_path)-1);
   if (connect(s, (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-    perror("connect");
+    perror("Could not connect to Poseidon master (HINT: is it actually running?)");
     exit(200);
   }
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
   // something.
   while (total < 4) {
     if ((t = recv(s, exitstatus + total, 4 - total, 0)) < 0) {
-      perror("recv");
+      perror("Could not receive exitstatus from master");
       exit(200);
     }
     total += t;

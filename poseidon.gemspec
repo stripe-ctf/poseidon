@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.version       = Poseidon::VERSION
   spec.authors       = ['Greg Brockman']
   spec.email         = ['gdb@gregbrockman.com']
-  spec.description   = %q{TODO: Write a gem description}
-  spec.summary       = %q{TODO: Write a gem summary}
+  spec.description   = %q{Boot once, run many times, for Ruby apps}
+  spec.summary       = %q{Load the code in a master process, and then fork and run your client's code}
   spec.homepage      = ''
   spec.license       = 'MIT'
 
@@ -17,6 +17,7 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib']
+  spec.extensions = ['ext/extconf.rb']
   spec.add_dependency 'chalk-log'
 
   spec.add_development_dependency 'rake'
