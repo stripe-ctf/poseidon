@@ -6,8 +6,9 @@
 require 'socket'
 
 UNIXSocket.open(ENV['POSEIDON_SOCK'] || '/tmp/poseidon.sock') do |conn|
-  conn.write([ARGV.length].pack('I'))
-  ARGV.each do |arg|
+  args = [$0] + ARGV
+  conn.write([args.length].pack('I'))
+  args.each do |arg|
     conn.write(arg)
     conn.write("\0")
   end

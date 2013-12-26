@@ -38,6 +38,8 @@ class Poseidon
   end
 
   def run
+    $0 = 'Poseidon: master'
+
     listen
     return if is_master?
     @blk.call
@@ -48,13 +50,18 @@ class Poseidon
   def finalize(conn, pid, exitstatus, termsig)
     log.info('Child died', pid: pid, exitstatus: exitstatus, termsig: termsig)
 
-    if termsig
-      conn.write([123].pack('I'))
-    elsif exitstatus
-      conn.write([exitstatus].pack('I'))
-    else
-      raise "Invalid statuses: exitstatus #{exitstatus.inspect}, termsig: #{termsig.inspect}"
+    begin
+      if termsig
+        conn.write([123].pack('I'))
+      elsif exitstatus
+        conn.write([exitstatus].pack('I'))
+      else
+        raise "Invalid statuses: exitstatus #{exitstatus.inspect}, termsig: #{termsig.inspect}"
+      end
+    rescue Errno::EPIPE => e
+      log.info('Client has gone away', error: e.message)
     end
+
     conn.close
   end
 
@@ -105,8 +112,6 @@ class Poseidon
     stdout = conn.recv_io
     stderr = conn.recv_io
 
-    log.info('Read FDs; about to reopen')
-
     $stdin.reopen(stdin)
     $stdout.reopen(stdout)
     $stderr.reopen(stderr)
@@ -124,12 +129,15 @@ class Poseidon
       conn.readline("\0").chomp("\0")
     end
 
-    ARGV = argv
-    log.info('Read ARGV', argv: argv)
+    program_name = argv.shift
+    log.info('About to execute', program_name: program_name, argv: argv)
+
+    $0 = "Poseidon slave: #{program_name || '(unnamed)'}"
+    ARGV.clear
+    ARGV.concat(argv)
   end
 
   def set_env
-    $0 = 'Poseidon: forked child'
   end
 
   def is_master?
