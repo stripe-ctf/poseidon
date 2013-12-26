@@ -7,11 +7,16 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+void handle_error(char *message)
+{
+  perror(message);
+  exit(200);
+}
+
 void checked_send(int s, void *buffer, int length)
 {
   if (send(s, buffer, length, 0) < 0) {
-    perror("Could not write bytes");
-    exit(200);
+    handle_error("Could not write bytes");
   }
 }
 
@@ -42,8 +47,7 @@ int checked_sendfd(int s, int fd)
   memmove(CMSG_DATA(cmsg), &fd, sizeof(int));
 
   if((n=sendmsg(s, &msg, 0)) != iov.iov_len) {
-    perror("Could not send file descriptors");
-    exit(200);
+    handle_error("Could not send file descriptors");
   }
   return 0;
 }
@@ -74,16 +78,14 @@ int main(int argc, char **argv)
 
   int s;
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-    perror("Could not create socket");
-    exit(200);
+    handle_error("Could not create socket");
   }
 
   struct sockaddr_un remote;
   remote.sun_family = AF_UNIX;
   strncpy(remote.sun_path, sock_path, sizeof(remote.sun_path)-1);
   if (connect(s, (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-    perror("Could not connect to Poseidon master (HINT: is it actually running?)");
-    exit(200);
+    handle_error("Could not connect to Poseidon master (HINT: is it actually running?)");
   }
 
   checked_sendfd(s, 0);
@@ -107,8 +109,7 @@ int main(int argc, char **argv)
   // something.
   while (total < 4) {
     if ((t = recv(s, exitstatus + total, 4 - total, 0)) < 0) {
-      perror("Could not receive exitstatus from master");
-      exit(200);
+      handle_error("Could not receive exitstatus from master");
     }
     total += t;
   }
