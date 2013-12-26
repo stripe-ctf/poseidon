@@ -1,14 +1,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 
+void read_errorfile() {
+  char buf[1024];
+  char *errorfile = getenv("POSEIDON_ERRORFILE");
+  if (errorfile) {
+    FILE *fr = fopen(errorfile, "r");
+    if (fr) {
+      while(fgets(buf, sizeof(buf), fr) != NULL) {
+	fprintf(stderr, "%s", buf);
+      }
+      fclose(fr);
+      fprintf(stderr, "\nError details:\n\n");
+    }
+  }
+}
+
 void handle_error(char *message)
 {
+  int err = errno;
+  read_errorfile();
   perror(message);
   exit(200);
 }
@@ -85,7 +103,7 @@ int main(int argc, char **argv)
   remote.sun_family = AF_UNIX;
   strncpy(remote.sun_path, sock_path, sizeof(remote.sun_path)-1);
   if (connect(s, (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-    handle_error("Could not connect to Poseidon master (HINT: is it actually running?)");
+    handle_error("Could not connect to UNIX socket for master process");
   }
 
   checked_sendfd(s, 0);
