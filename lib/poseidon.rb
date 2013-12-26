@@ -1,4 +1,5 @@
 require 'chalk-log'
+require 'einhorn/worker'
 require 'set'
 require 'tempfile'
 require 'fileutils'
@@ -50,12 +51,6 @@ class Poseidon
     else
       @socket_symlink_path = nil
     end
-  end
-
-  def setup_symlink
-    return unless @socket_symlink_path
-    log.info('Creating symlink', target: @socket_path, source: @socket_symlink_path)
-    FileUtils.ln_sf(@socket_path, @socket_symlink_path)
   end
 
   def break_loop
@@ -119,7 +114,7 @@ class Poseidon
 
     UNIXServer.open(socket_path) do |server|
       log.info('Listening for Poseidon requests', socket_path: socket_path)
-      setup_symlink
+      post_open
 
       while true
         conn = accept_loop(server)
@@ -158,5 +153,21 @@ class Poseidon
 
   def is_master?
     @master_process == $$
+  end
+
+  # TODO: refactor into strategy, perhaps
+  def post_open
+    setup_symlink
+    ack_einhorn
+  end
+
+  def setup_symlink
+    return unless @socket_symlink_path
+    log.info('Creating symlink', target: @socket_path, source: @socket_symlink_path)
+    FileUtils.ln_sf(@socket_path, @socket_symlink_path)
+  end
+
+  def ack_einhorn
+    Einhorn::Worker.ack
   end
 end
