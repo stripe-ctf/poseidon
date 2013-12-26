@@ -1,8 +1,10 @@
-require 'poseidon/version'
 require 'chalk-log'
 require 'set'
 require 'tempfile'
 require 'fileutils'
+
+require 'poseidon/version'
+require 'poseidon/ssh_strategy'
 
 class Poseidon
   include Chalk::Log
@@ -16,6 +18,8 @@ class Poseidon
     @master_process = $$
     @children = {}
     @loopbreak_reader, @loopbreak_writer = IO.pipe
+
+    @strategy = opts[:strategy] || Poseidon::SSHStrategy.new
 
     Signal.trap('CHLD') {break_loop}
 
@@ -77,7 +81,7 @@ class Poseidon
   end
 
   def finalize(conn, pid, exitstatus, termsig)
-    log.info('Child died', pid: pid, exitstatus: exitstatus, termsig: termsig)
+    log.info('Child exited', pid: pid, exitstatus: exitstatus, termsig: termsig)
 
     begin
       if termsig
@@ -125,10 +129,9 @@ class Poseidon
         else
           fds = read_fds(conn)
           args = read_args(conn)
+          @strategy.interpret(fds, args)
           conn.close
 
-          interpret_args(args)
-          interpret_fds(fds)
           return
         end
       end
@@ -151,43 +154,6 @@ class Poseidon
     stdout = conn.recv_io
     stderr = conn.recv_io
     [stdin, stdout, stderr]
-  end
-
-  def interpret_args(args)
-    log.info('Calling with args', args: args)
-
-    command = args.shift
-
-    while true
-      unless variable = args.shift
-        raise "Environment list did not end with a --"
-      end
-
-      break if variable == '--'
-
-      key, value = variable.split("=")
-      unless key && value
-        raise "Invalid environment key=value: #{variable.inspect}"
-      end
-
-      ENV[key] = value
-    end
-
-    $0 = "Poseidon slave: #{command}"
-    ARGV.clear
-    ARGV.concat(args)
-  end
-
-  def interpret_fds(fds)
-    stdin, stdout, stderr = fds
-
-    $stdin.reopen(stdin)
-    $stdout.reopen(stdout)
-    $stderr.reopen(stderr)
-
-    stdin.close
-    stdout.close
-    stderr.close
   end
 
   def is_master?
