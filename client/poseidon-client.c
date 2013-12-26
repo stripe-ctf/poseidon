@@ -41,8 +41,10 @@ int checked_sendfd(int s, int fd)
   cmsg->cmsg_type = SCM_RIGHTS;
   memmove(CMSG_DATA(cmsg), &fd, sizeof(int));
 
-  if((n=sendmsg(s, &msg, 0)) != iov.iov_len)
-    return -1;
+  if((n=sendmsg(s, &msg, 0)) != iov.iov_len) {
+    perror("Could not send file descriptors");
+    exit(200);
+  }
   return 0;
 }
 
@@ -84,19 +86,19 @@ int main(int argc, char **argv)
     exit(200);
   }
 
-  unsigned char bytes[4];
-  pack_int(bytes, argc);
-  // Write argument count
-  checked_send(s, bytes, 4);
-
-  for (int i = 0; i < argc; i++) {
-    // Write all arguments (including null terminators)
-    checked_send(s, argv[i], strlen(argv[i]) + 1);
-  }
-
   checked_sendfd(s, 0);
   checked_sendfd(s, 1);
   checked_sendfd(s, 2);
+
+  unsigned char bytes[4];
+  pack_int(bytes, argc - 1);
+  // Write argument count
+  checked_send(s, bytes, 4);
+
+  for (int i = 1; i < argc; i++) {
+    // Write all arguments (including null terminators)
+    checked_send(s, argv[i], strlen(argv[i]) + 1);
+  }
 
   int t, total = 0;
   unsigned char exitstatus[4];
