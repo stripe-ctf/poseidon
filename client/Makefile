@@ -1,3 +1,3 @@
 CC = gcc
 all:
-	$(CC) -o poseidon-client poseidon-client.c
+	$(CC) -std=c99 -o poseidon-client poseidon-client.c
