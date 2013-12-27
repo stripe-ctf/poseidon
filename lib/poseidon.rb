@@ -28,11 +28,9 @@ class Poseidon
   end
 
   def run(&blk)
-    $0 = 'Poseidon: master'
-
-    listen
+    interpretation = listen
     return if is_master?
-    blk.call
+    blk.call(interpretation)
   end
 
   private
@@ -124,10 +122,9 @@ class Poseidon
         else
           fds = read_fds(conn)
           args = read_args(conn)
-          @strategy.interpret(fds, args)
           conn.close
-
-          return
+          interpretation = @strategy.interpret(fds, args)
+          return interpretation
         end
       end
     end
@@ -157,8 +154,14 @@ class Poseidon
 
   # TODO: refactor into strategy, perhaps
   def post_open
+    chmod_socket
     setup_symlink
     ack_einhorn
+  end
+
+  def chmod_socket
+    return unless mode = @opts[:socket_permissions]
+    File.chmod(mode, socket_path)
   end
 
   def setup_symlink

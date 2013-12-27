@@ -3,13 +3,20 @@ require 'etc'
 class Poseidon::SSHStrategy
   include Chalk::Log
 
-  def initialize(valid_gid=nil)
-    @valid_gid = valid_gid
+  def initialize(opts={})
+    @valid_gid = opts[:valid_gid]
+    @slave_name = opts[:slave_name] || 'poseidon slave'
+    @logfile_selector = opts[:logfile_selector]
   end
 
   def interpret(fds, args)
-    interpret_args(args)
+    command, args, pwd, env_updates = interpret_args(args)
+
+    change_to_logfile(env_updates)
+    apply_settings(command, args, pwd, env_updates)
     interpret_fds(fds)
+
+    command
   end
 
   private
@@ -19,26 +26,37 @@ class Poseidon::SSHStrategy
 
     command = args.shift
 
+    pwd = nil
     env_updates = {}
     while true
       unless variable = args.shift
         raise "Environment list did not end with a --"
       end
 
-      break if variable == '--'
-
-      key, value = variable.split("=")
-      unless key && value
-        raise "Invalid environment key=value: #{variable.inspect}"
+      case variable
+      when '--'
+        break
+      when /\A--(\w+)=(.*)\z/
+        type = $1
+        value = $2
+        case type
+        when 'env'
+          env_key, env_value = value.split("=")
+          unless env_key && env_value
+            raise "Invalid environment key=value: #{value.inspect}"
+          end
+          env_updates[env_key] = env_value
+        when 'pwd'
+          pwd = value
+        else
+          raise "Unrecognized directive type #{type.inspect}"
+        end
+      else
+        raise "Positional argument found before --: #{variable.inspect}"
       end
-
-      env_updates[key] = value
     end
 
-    $0 = "Poseidon slave: #{command}"
-    ARGV.clear
-    ARGV.concat(args)
-    apply_env_updates(env_updates)
+    [command, args, pwd, env_updates]
   end
 
   def interpret_fds(fds)
@@ -51,6 +69,14 @@ class Poseidon::SSHStrategy
     stdin.close
     stdout.close
     stderr.close
+  end
+
+  def apply_settings(command, args, pwd, env_updates)
+    $0 = "#{@slave_name}: #{command}"
+    ARGV.clear
+    ARGV.concat(args)
+    apply_env_updates(env_updates)
+    Dir.chdir(pwd) if pwd
   end
 
   def apply_env_updates(env_updates)
@@ -93,5 +119,16 @@ class Poseidon::SSHStrategy
       log.error('XXX: Trying to become invalid group', gid: gid, uid: uid, valid_gid: @valid_gid)
       exit!(1)
     end
+  end
+
+  def change_to_logfile(env_updates)
+    return unless @logfile_selector
+    # Note: USER hasn't been validated at this point. Use with care.
+    return unless logfile = @logfile_selector.call(env_updates)
+
+    # TODO: create a better interface for this in Chalk::Log
+    ::Logging.logger.root.appenders = [
+      ::Logging.appenders.file(logfile, layout: Chalk::Log.layout)
+    ]
   end
 end
