@@ -126,7 +126,8 @@ int main(int argc, char **argv)
   // Maybe should replace this janky buffering with fread or
   // something.
   while (total < 4) {
-    if ((t = recv(s, exitstatus + total, 4 - total, 0)) < 0) {
+    // Handle errors as well as closed other ends
+    if ((t = recv(s, exitstatus + total, 4 - total, 0)) < 1) {
       handle_error("Could not receive exitstatus from master");
     }
     total += t;
