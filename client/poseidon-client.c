@@ -27,6 +27,7 @@ void handle_error(char *message)
 {
   int err = errno;
   read_errorfile();
+  errno = err;
   perror(message);
   exit(200);
 }
@@ -127,8 +128,10 @@ int main(int argc, char **argv)
   // something.
   while (total < 4) {
     // Handle errors as well as closed other ends
-    if ((t = recv(s, exitstatus + total, 4 - total, 0)) < 1) {
+    if ((t = recv(s, exitstatus + total, 4 - total, 0)) < 0) {
       handle_error("Could not receive exitstatus from master");
+    } else if (t == 0) {
+      handle_error("Master hung up connection");
     }
     total += t;
   }
