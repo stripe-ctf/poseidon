@@ -28,7 +28,11 @@ void handle_error(char *message)
   int err = errno;
   read_errorfile();
   errno = err;
-  perror(message);
+  if (err) {
+    perror(message);
+  } else {
+    printf("%s.\n", message);
+  }
   exit(200);
 }
 
