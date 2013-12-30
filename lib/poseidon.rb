@@ -5,6 +5,18 @@ require 'tempfile'
 require 'fileutils'
 
 require 'poseidon/version'
+begin
+  require 'poseidon_ext'
+rescue LoadError => e
+  begin
+    require_relative '../ext/poseidon_ext'
+  rescue LoadError
+    raise e
+  end
+
+  $stderr.puts "WARNING: Poseidon is falling back to a manually-specified poseidon_ext path. This should only be needed in development."
+end
+
 require 'poseidon/ssh_strategy'
 
 class Poseidon
@@ -120,10 +132,11 @@ class Poseidon
           @children[pid] = conn
           log.info('Spawned child', pid: pid)
         else
+          identity = Poseidon::Ext.get_identity(conn)
           fds = read_fds(conn)
           args = read_args(conn)
           conn.close
-          interpretation = @strategy.interpret(fds, args)
+          interpretation = @strategy.interpret(identity, fds, args)
           return interpretation
         end
       end

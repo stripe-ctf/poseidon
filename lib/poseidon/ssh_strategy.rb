@@ -9,7 +9,7 @@ class Poseidon::SSHStrategy
     @logfile_selector = opts[:logfile_selector]
   end
 
-  def interpret(fds, args)
+  def interpret(identity, fds, args)
     command, args, pwd, env_updates = interpret_args(args)
 
     change_to_logfile(env_updates)
