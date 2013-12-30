@@ -17,3 +17,4 @@ test/version_tmp
 tmp
 build-thrifty
 poseidon-client
+vendor

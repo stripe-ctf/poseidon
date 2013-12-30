@@ -1,3 +1,5 @@
 /Makefile
 /*.bundle
 /*.o
+/*.log
+/*.so

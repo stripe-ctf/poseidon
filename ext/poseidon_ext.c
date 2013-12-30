@@ -7,14 +7,33 @@ static VALUE Intern_fileno;
 static VALUE Intern_new;
 static VALUE Identity;
 
+#ifndef __APPLE__
+// TODO: Add more platform support?
+
+#include <linux/socket.h>
+#include <sys/socket.h>
+int getpeereid(int s, uid_t *euid, gid_t *egid)
+{
+  struct ucred cred;
+  socklen_t len = sizeof(cred);
+
+  if (getsockopt(s, SOL_SOCKET, SO_PEERCRED, &cred, &len) < 0)
+    return -1;
+  *euid = cred.uid;
+  *egid = cred.gid;
+
+  return 0;
+}
+#endif
+
 VALUE method_get_identity(VALUE self, VALUE conn) {
   VALUE fileno = rb_funcall(conn, Intern_fileno, 0);
-  int fd = NUM2INT(fileno);
+  int s = NUM2INT(fileno);
 
   uid_t euid;
   gid_t egid;
-  // Darwin-only
-  if (getpeereid(fd, &euid, &egid) < 0) {
+
+  if (getpeereid(s, &euid, &egid) < 0) {
     VALUE error = rb_funcall(rb_eSystemCallError, Intern_new, 1, INT2NUM(errno));
     rb_exc_raise(error);
   }
