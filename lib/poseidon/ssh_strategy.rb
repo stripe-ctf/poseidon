@@ -17,8 +17,11 @@ class Poseidon::SSHStrategy
     command, args, pwd, env_updates = interpret_args(args)
 
     change_to_logfile(env_updates)
-    apply_settings(command, args, pwd, env_updates)
+    apply_settings(command, args, env_updates)
+    apply_pwd(pwd, home)
     apply_fds(fds)
+    # This should be last, since once the setuid has happened we can't
+    # trust the process anymore.
     apply_identity(username, uid, gid, home)
 
     command
@@ -74,12 +77,16 @@ class Poseidon::SSHStrategy
     [username, uid, gid, home]
   end
 
+  def apply_pwd(pwd, home)
+    pwd ||= home
+    Dir.chdir(pwd)
+  end
+
   def apply_identity(username, uid, gid, home)
     drop_privileges(username, uid, gid)
 
     ENV['USER'] = username
     ENV['HOME'] = home
-    Dir.chdir(ENV['HOME'])
   end
 
   def apply_fds(fds)
@@ -94,12 +101,11 @@ class Poseidon::SSHStrategy
     stderr.close
   end
 
-  def apply_settings(command, args, pwd, env_updates)
+  def apply_settings(command, args, env_updates)
     $0 = "#{@slave_name}: #{command}"
     ARGV.clear
     ARGV.concat(args)
     apply_env_updates(env_updates)
-    Dir.chdir(pwd) if pwd
   end
 
   def apply_env_updates(env_updates)
