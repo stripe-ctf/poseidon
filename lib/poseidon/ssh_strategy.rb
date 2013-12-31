@@ -4,17 +4,22 @@ class Poseidon::SSHStrategy
   include Chalk::Log
 
   def initialize(opts={})
-    @valid_gid = opts[:valid_gid]
-    @slave_name = opts[:slave_name] || 'poseidon slave'
-    @logfile_selector = opts[:logfile_selector]
+    @valid_gid = opts.delete(:valid_gid)
+    @slave_name = opts.delete(:slave_name) || 'poseidon slave'
+    @logfile_selector = opts.delete(:logfile_selector)
+
+    raise "Unrecognized options: #{opts.keys.inspect}" if opts.length > 0
   end
 
   def interpret(identity, fds, args)
+    username, uid, gid, home = interpret_identity(identity)
+    log.info('Caller information', args: args, username: username, uid: uid, gid: gid)
     command, args, pwd, env_updates = interpret_args(args)
 
     change_to_logfile(env_updates)
     apply_settings(command, args, pwd, env_updates)
-    interpret_fds(fds)
+    apply_fds(fds)
+    apply_identity(username, uid, gid, home)
 
     command
   end
@@ -22,8 +27,6 @@ class Poseidon::SSHStrategy
   private
 
   def interpret_args(args)
-    log.info('Calling with args', args: args)
-
     command = args.shift
 
     pwd = nil
@@ -59,7 +62,27 @@ class Poseidon::SSHStrategy
     [command, args, pwd, env_updates]
   end
 
-  def interpret_fds(fds)
+  def interpret_identity(identity)
+    uid = identity.uid
+    gid = identity.gid
+    sanity_check(uid, gid)
+
+    passwd = Etc.getpwuid(uid)
+    username = passwd.name
+    home = passwd.dir
+
+    [username, uid, gid, home]
+  end
+
+  def apply_identity(username, uid, gid, home)
+    drop_privileges(username, uid, gid)
+
+    ENV['USER'] = username
+    ENV['HOME'] = home
+    Dir.chdir(ENV['HOME'])
+  end
+
+  def apply_fds(fds)
     stdin, stdout, stderr = fds
 
     $stdin.reopen(stdin)
@@ -81,26 +104,29 @@ class Poseidon::SSHStrategy
 
   def apply_env_updates(env_updates)
     ENV.update(env_updates)
-
-    # TODO: figure out how to authenticate this.
-    if username = env_updates['USER']
-      passwd = Etc.getpwnam(username)
-      uid = passwd.uid
-      gid = passwd.gid
-
-      sanity_check(uid, gid)
-      drop_privileges(username, uid, gid)
-
-      ENV['HOME'] = passwd.dir unless env_updates.include?('HOME')
-      Dir.chdir(ENV['HOME'])
-    end
   end
 
   def drop_privileges(username, uid, gid)
-    Process.initgroups(username, gid)
+    begin
+      Process.initgroups(username, gid)
+    rescue Errno::EPERM => e
+      current_uid = Etc.getpwuid.uid
+      raise e unless current_uid
+
+      # Not a huge deal; this means we're not running as root. The one
+      # case this could be sketchy is if poseidon is running with an
+      # escalated secondary group list, but that seems pretty
+      # far-fetched.
+      #
+      # In the future, we may want to support running Poseidon without
+      # the setuid at all.
+    end
+
     Process::Sys.setgid(gid)
     Process::Sys.setuid(uid)
+
     # Be paranoid and make sure we actually dropped
+    return if uid == 0
     begin
       Process::Sys.setuid(0)
     rescue Errno::EPERM
@@ -112,10 +138,7 @@ class Poseidon::SSHStrategy
   end
 
   def sanity_check(uid, gid)
-    if uid == 0
-      log.error('XXX: Trying to become root')
-      exit!(1)
-    elsif @valid_gid && gid != @valid_gid
+    if @valid_gid && gid != @valid_gid
       log.error('XXX: Trying to become invalid group', gid: gid, uid: uid, valid_gid: @valid_gid)
       exit!(1)
     end
