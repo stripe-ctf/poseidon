@@ -16,7 +16,7 @@ class Poseidon::SSHStrategy
     log.info('Caller information', args: args, username: username, uid: uid, gid: gid)
     command, args, pwd, env_updates = interpret_args(args)
 
-    change_to_logfile(env_updates)
+    change_to_logfile(username)
     apply_settings(command, args, env_updates)
     apply_pwd(pwd, home)
     apply_fds(fds)
@@ -150,10 +150,9 @@ class Poseidon::SSHStrategy
     end
   end
 
-  def change_to_logfile(env_updates)
+  def change_to_logfile(username)
     return unless @logfile_selector
-    # Note: USER hasn't been validated at this point. Use with care.
-    return unless logfile = @logfile_selector.call(env_updates)
+    return unless logfile = @logfile_selector.call(username)
 
     # TODO: create a better interface for this in Chalk::Log
     ::Logging.logger.root.appenders = [
