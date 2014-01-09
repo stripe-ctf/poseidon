@@ -18,6 +18,7 @@ rescue LoadError => e
 end
 
 require 'poseidon/ssh_strategy'
+require 'poseidon/util'
 
 class Poseidon
   include Chalk::Log
