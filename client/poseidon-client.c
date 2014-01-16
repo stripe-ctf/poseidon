@@ -8,7 +8,18 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-void read_errorfile() {
+void handle_error(char *message)
+{
+  fprintf(stderr, "Something went wrong! Error details:\n\n");
+
+  if (errno) {
+    perror(message);
+  } else {
+    printf("%s.\n", message);
+  }
+
+  fprintf(stderr, "\n");
+
   char buf[1024];
   char *errorfile = getenv("POSEIDON_ERRORFILE");
   if (errorfile) {
@@ -18,21 +29,11 @@ void read_errorfile() {
 	fprintf(stderr, "%s", buf);
       }
       fclose(fr);
-      fprintf(stderr, "\nError details:\n\n");
     }
   }
-}
 
-void handle_error(char *message)
-{
-  int err = errno;
-  read_errorfile();
-  errno = err;
-  if (err) {
-    perror(message);
-  } else {
-    printf("%s.\n", message);
-  }
+  fprintf(stderr, "\n");
+
   exit(200);
 }
 
