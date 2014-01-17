@@ -1,5 +1,6 @@
 require 'chalk-log'
 require 'einhorn/worker'
+require 'chalk-tools'
 require 'set'
 require 'tempfile'
 require 'fileutils'
@@ -35,14 +36,18 @@ class Poseidon
 
     @strategy = opts[:strategy] || Poseidon::SSHStrategy.new
 
-    Signal.trap('CHLD') {break_loop}
-
     munge_socket_path
   end
 
   def run(&blk)
+    chld = Signal.trap('CHLD') {break_loop}
+    Chalk::Tools::GracefulExit.setup {break_loop}
+
     interpretation = listen
     return if is_master?
+
+    Signal.trap('CHLD', chld)
+    Chalk::Tools::GracefulExit.teardown
     blk.call(interpretation)
   end
 
@@ -106,6 +111,7 @@ class Poseidon
 
   def accept_loop(server)
     while true
+      Chalk::Tools::GracefulExit.checkpoint if @children.length == 0
       readers, _, _ = IO.select([server, @loopbreak_reader])
       if readers.include?(@loopbreak_reader)
         @loopbreak_reader.readpartial(4096)

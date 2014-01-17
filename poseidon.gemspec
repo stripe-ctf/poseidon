@@ -26,6 +26,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'minitest-reporters'
   spec.add_development_dependency 'mocha'
   spec.add_development_dependency 'chalk-rake'
+  spec.add_development_dependency 'chalk-tools'
+  spec.add_development_dependency 'chalk-log'
 
   spec.add_development_dependency 'bundler', '~> 1.3'
 end
