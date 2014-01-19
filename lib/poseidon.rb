@@ -46,7 +46,9 @@ class Poseidon
     interpretation = listen
     return if is_master?
 
-    Signal.trap('CHLD', chld)
+    # TODO: ideally, we'd always set this to chld, but that actually
+    # means IGNORE if chld is nil
+    Signal.trap('CHLD', chld || 'DEFAULT')
     Chalk::Tools::GracefulExit.teardown
     blk.call(interpretation)
   end
