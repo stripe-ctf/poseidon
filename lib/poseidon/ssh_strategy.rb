@@ -4,7 +4,7 @@ class Poseidon::SSHStrategy
   include Chalk::Log
 
   def initialize(opts={})
-    @valid_gid = opts.delete(:valid_gid)
+    @valid_gids = opts.delete(:valid_gids)
     @slave_name = opts.delete(:slave_name) || 'poseidon slave'
     @logfile_selector = opts.delete(:logfile_selector)
 
@@ -144,8 +144,8 @@ class Poseidon::SSHStrategy
   end
 
   def sanity_check(uid, gid)
-    if @valid_gid && gid != @valid_gid
-      log.error('XXX: Trying to become invalid group', gid: gid, uid: uid, valid_gid: @valid_gid)
+    if @valid_gids && !@valid_gids.include?(gid)
+      log.error('XXX: Trying to become invalid group', gid: gid, uid: uid, valid_gids: @valid_gids)
       exit!(1)
     end
   end
