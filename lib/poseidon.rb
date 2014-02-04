@@ -190,7 +190,7 @@ class Poseidon
   def setup_symlink
     return unless @socket_symlink_path
     log.info('Creating symlink', target: @socket_path, source: @socket_symlink_path)
-    FileUtils.ln_sf(@socket_path, @socket_symlink_path)
+    Poseidon::Util.atomic_symlink(@socket_path, @socket_symlink_path)
   end
 
   def ack_einhorn
