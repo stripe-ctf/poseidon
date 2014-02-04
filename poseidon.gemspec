@@ -19,6 +19,7 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib']
   spec.add_dependency 'chalk-log'
+  spec.add_dependency 'chalk-tools'
   spec.add_dependency 'einhorn'
 
   spec.add_development_dependency 'rake'

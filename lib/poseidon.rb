@@ -1,4 +1,5 @@
 require 'chalk-log'
+require 'chalk-tools'
 require 'einhorn/worker'
 require 'chalk-tools'
 require 'set'
